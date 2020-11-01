@@ -1,0 +1,1 @@
+int parseCommand(char* line, char* cmd[]);
