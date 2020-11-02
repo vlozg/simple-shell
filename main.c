@@ -1,6 +1,9 @@
-#include <stdio.h>
-#include <unistd.h>
 #include "main_header.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/wait.h>
 #define MAX_LINE 200 /* The maximum length command */
 
 int main(void)
@@ -17,12 +20,45 @@ int main(void)
         fgets(line, MAX_LINE, stdin);
         int n_args = parseCommand(line, args);
         
-        /**
-        * After reading user input, the steps are:
-        * (1) fork a child process using fork()
-        * (2) the child process will invoke execvp()
-        * (3) parent will invoke wait() unless command included &
-        */
+        // Check for exit command
+        if (strcmp(args[0], "exit") == 0
+            || strcmp(args[0], "q") == 0
+            || strcmp(args[0], "quit") == 0)
+        {
+            terminated = 1;
+            continue;
+        }
+
+        // Check for & argument
+        int wait_flag = 1;
+        if (strcmp(args[n_args-1], "&") == 0)
+        {
+            wait_flag = 0;
+            args[--n_args] = NULL;
+        }
+
+        pid_t new_pid;
+        int status;
+        new_pid = fork();
+        switch (new_pid)
+        {
+            case -1: 
+                printf( "Cannot fork any new process." ); 
+                break;
+            case 0:
+                if (execvp(args[0], args) < 0) 
+                {
+                    printf("%s: command not found\n", args[0]);
+                    return 0;
+                }
+                break;
+            default:
+                if (wait_flag == 1)
+                    wait(&status);
+                break;
+        }
+
+        /*(3) parent will invoke wait() unless command included &*/
     }
     return 0;
 }
