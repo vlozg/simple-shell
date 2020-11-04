@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <errno.h>
 
 void parseRedirectCommand(char* line, int* ifd, int* ofd)
 /*
@@ -61,17 +63,17 @@ void parseRedirectCommand(char* line, int* ifd, int* ofd)
         switch (direct_type)
         {
         case 1:
-            *ifd = open(tmp, O_CREAT | O_RDONLY);
+            *ifd = open(tmp, O_CREAT | O_RDONLY, S_IRUSR | S_IWUSR);
             dup2(*ifd, c_ifd);
             c_ifd = *ifd;
             break;
         case 2:
-            *ofd = open(tmp, O_CREAT | O_WRONLY | O_TRUNC);
+            *ofd = open(tmp, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
             dup2(*ofd, c_ofd);
             c_ofd = *ofd;
             break;
         case 3:
-            *ofd = open(tmp, O_CREAT | O_WRONLY | O_APPEND);
+            *ofd = open(tmp, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR);
             dup2(*ofd, c_ofd);
             c_ofd = *ofd;
             break;
