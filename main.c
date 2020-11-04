@@ -36,6 +36,7 @@ int main(void)
             {
                 // Extract single command and set a new break point
                 strncpy(tmp, &line[brk], i-brk);
+                tmp[i-brk] = '\0';
                 brk = i+1;
                 
                 // Execute that command
@@ -46,11 +47,12 @@ int main(void)
 
             }
         }
-
+        
         // Execute the remained command after & and | (if exist)
         if (brk < strlen(line))
         {
             strncpy(tmp, &line[brk], strlen(line)-brk);
+            tmp[strlen(line)-brk] = '\0';
             terminated = executeSingleCmd(tmp, 1);
         }
     }
@@ -60,9 +62,10 @@ int main(void)
 int executeSingleCmd(char* line, int wait_flag)
 {
     char *args[MAX_LINE/2 + 1]; /* command line arguments */
-    int i, o;
+    int o = dup(STDOUT_FILENO),
+        i = dup(STDIN_FILENO);
     // Redirect then parse arguments
-    parseRedirectCommand(line, &i, &o);
+    parseRedirectCommand(line);
     int n_args = parseCommand(line, args);
     
     // Check for exit command
@@ -70,8 +73,9 @@ int executeSingleCmd(char* line, int wait_flag)
         || strcmp(args[0], "q") == 0
         || strcmp(args[0], "quit") == 0)
     {
-        dup2(STDIN_FILENO, i);
-        dup2(STDOUT_FILENO, o);
+        dup2(i, STDIN_FILENO);
+        dup2(o, STDOUT_FILENO);
+        close(i); close(o);
         return 1;
     }
 
@@ -79,8 +83,9 @@ int executeSingleCmd(char* line, int wait_flag)
     if (strcmp(args[0], "history") == 0
         || strcmp(args[0], "!!") == 0)
     {
-        dup2(STDIN_FILENO, i);
-        dup2(STDOUT_FILENO, o);
+        dup2(i, STDIN_FILENO);
+        dup2(o, STDOUT_FILENO);
+        close(i); close(o);
         return 0;
     }
 
@@ -96,8 +101,9 @@ int executeSingleCmd(char* line, int wait_flag)
         case 0:
             if (execvp(args[0], args) < 0) 
             {
-                dup2(STDIN_FILENO, i);
-                dup2(STDOUT_FILENO, o);
+                dup2(i, STDIN_FILENO);
+                dup2(o, STDOUT_FILENO);
+                close(i); close(o);
                 printf("%s: command not found\n", args[0]);
                 return 1;
             }
@@ -108,7 +114,9 @@ int executeSingleCmd(char* line, int wait_flag)
             break;
     }
 
-    dup2(STDIN_FILENO, i);
-    dup2(STDOUT_FILENO, o);
+    dup2(i, STDIN_FILENO);
+    dup2(o, STDOUT_FILENO);
+    close(i);
+    close(o);
     return 0;
 }
