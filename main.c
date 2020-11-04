@@ -15,22 +15,43 @@ int main(void)
     int terminated = 0; /* flag to determine when to exit program */
 
     while (!terminated) {
-        wait_flag = 1;
         printf("osh>");
         fflush(stdout);
         
         // Read user command line
         fgets(line, MAX_LINE, stdin);
+        //Remove trailing character at the end of line
+        int len = strlen(line) - 1;
+        while (line[len] == '\r' || line[len] == '\n' || line[len] == ' ')
+        {
+            line[len--] = '\0';
+            if (len < 0) break;
+        }
 
-        for (int i = 0, brk = 0; i < strlen(line); i++){
+        // Extract single command in between symbol & and symbol |
+        // Single command is a command that only have arguments and redirect sub-commands, does not contain bg (&) and pipe command (|)
+        int brk = 0;
+        for (int i = 0; i < strlen(line); i++){
             if (line[i] == '&')
             {
+                // Extract single command and set a new break point
+                strncpy(tmp, &line[brk], i-brk);
+                brk = i+1;
                 
+                // Execute that command
+                terminated = executeSingleCmd(tmp, 0);
             }
-            else if (line[j] == '|')
+            else if (line[i] == '|')
             {
 
             }
+        }
+
+        // Execute the remained command after & and | (if exist)
+        if (brk < strlen(line))
+        {
+            strncpy(tmp, &line[brk], strlen(line)-brk);
+            terminated = executeSingleCmd(tmp, 1);
         }
     }
     return 0;
@@ -39,9 +60,9 @@ int main(void)
 int executeSingleCmd(char* line, int wait_flag)
 {
     char *args[MAX_LINE/2 + 1]; /* command line arguments */
-    
+    int i, o;
     // Redirect then parse arguments
-    parseRedirectCommand(line);
+    parseRedirectCommand(line, &i, &o);
     int n_args = parseCommand(line, args);
     
     // Check for exit command
@@ -49,13 +70,17 @@ int executeSingleCmd(char* line, int wait_flag)
         || strcmp(args[0], "q") == 0
         || strcmp(args[0], "quit") == 0)
     {
-        return 0;
+        dup2(STDIN_FILENO, i);
+        dup2(STDOUT_FILENO, o);
+        return 1;
     }
 
     // Check for history argument or !! argument
     if (strcmp(args[0], "history") == 0
         || strcmp(args[0], "!!") == 0)
     {
+        dup2(STDIN_FILENO, i);
+        dup2(STDOUT_FILENO, o);
         return 0;
     }
 
@@ -71,8 +96,10 @@ int executeSingleCmd(char* line, int wait_flag)
         case 0:
             if (execvp(args[0], args) < 0) 
             {
+                dup2(STDIN_FILENO, i);
+                dup2(STDOUT_FILENO, o);
                 printf("%s: command not found\n", args[0]);
-                return 0;
+                return 1;
             }
             break;
         default:
@@ -80,5 +107,8 @@ int executeSingleCmd(char* line, int wait_flag)
                 waitpid(new_pid ,&status, 0);
             break;
     }
-    return 1;
+
+    dup2(STDIN_FILENO, i);
+    dup2(STDOUT_FILENO, o);
+    return 0;
 }
