@@ -1,10 +1,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
 
-void parseRedirectCommand(char* line, int* ifd, int* ofd)
+void parseRedirectCommand(char* line)
 /*
     Extract redirect command from user inputted command line and redirect the stdout/stdin.
 
@@ -14,10 +12,8 @@ void parseRedirectCommand(char* line, int* ifd, int* ofd)
     -   ifd (int*): pointer used to return in file descriptor (if redirection occur).
     -   ofd (int*): pointer used to return out file descriptor (if redirection occur).
 */
-{
-    int c_ifd = STDIN_FILENO,
-        c_ofd = STDOUT_FILENO;
-    
+{   
+    int ofd, ifd;
     int i, j;
     int direct_type = 0; // 0: no direct, 1: stdin redirect, 2: stdout redirect, 3: stdout append redirect
     char tmp[4000];
@@ -63,19 +59,16 @@ void parseRedirectCommand(char* line, int* ifd, int* ofd)
         switch (direct_type)
         {
         case 1:
-            *ifd = open(tmp, O_CREAT | O_RDONLY, S_IRUSR | S_IWUSR);
-            dup2(*ifd, c_ifd);
-            c_ifd = *ifd;
+            ifd = open(tmp, O_CREAT | O_RDONLY, S_IRUSR | S_IWUSR);
+            dup2(ifd, STDIN_FILENO);
             break;
         case 2:
-            *ofd = open(tmp, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
-            dup2(*ofd, c_ofd);
-            c_ofd = *ofd;
+            ofd = open(tmp, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+            dup2(ofd, STDOUT_FILENO);
             break;
         case 3:
-            *ofd = open(tmp, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR);
-            dup2(*ofd, c_ofd);
-            c_ofd = *ofd;
+            ofd = open(tmp, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR);
+            dup2(ofd, STDOUT_FILENO);
             break;
         }
     }
