@@ -13,6 +13,8 @@ int main(void)
     char line[MAX_LINE]; /* user command */
     char tmp[MAX_LINE];
     int terminated = 0; /* flag to determine when to exit program */
+    int stdi = dup(STDIN_FILENO), 
+        stdo = dup(STDOUT_FILENO);
 
     while (!terminated) {
         printf("osh>");
@@ -28,6 +30,7 @@ int main(void)
             if (len < 0) break;
         }
 
+
         // Extract single command in between symbol & and symbol |
         // Single command is a command that only have arguments and redirect sub-commands, does not contain bg (&) and pipe command (|)
         int brk = 0;
@@ -41,10 +44,36 @@ int main(void)
                 
                 // Execute that command
                 terminated = executeSingleCmd(tmp, 0);
+
+                // Restore stdin in case that command is executed after | symbol
+                dup2(stdi, STDIN_FILENO);
             }
             else if (line[i] == '|')
             {
+                // Initiate a new pipe
+                int data_pipe[2];
+                if (pipe(data_pipe) == -1)
+                {
+                    printf("Fail to create a new pipe.\n");
+                    return 0;
+                }
 
+                // Redirect write pipe for command before | symbol
+                // Stdin remain intact
+                dup2(data_pipe[1], STDOUT_FILENO);
+
+                // Extract single command and set a new break point
+                strncpy(tmp, &line[brk], i-brk);
+                tmp[i-brk] = '\0';
+                brk = i+1;
+                
+                // Execute that command
+                terminated = executeSingleCmd(tmp, 0);
+                
+                // Restore Stdout for the command after | symbol
+                // Redirect read pipe
+                dup2(stdo, STDOUT_FILENO);
+                dup2(data_pipe[0], STDIN_FILENO);
             }
         }
         
@@ -54,8 +83,11 @@ int main(void)
             strncpy(tmp, &line[brk], strlen(line)-brk);
             tmp[strlen(line)-brk] = '\0';
             terminated = executeSingleCmd(tmp, 1);
+            // Restore stdin in case that command is executed after | symbol
+            dup2(stdi, STDIN_FILENO);
         }
     }
+    close(stdi); close(stdo);
     return 0;
 }
 
