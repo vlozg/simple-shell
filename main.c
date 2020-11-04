@@ -11,8 +11,10 @@ int main(void)
     char *args[MAX_LINE/2 + 1]; /* command line arguments */
     char line[MAX_LINE]; /* user command */
     int terminated = 0; /* flag to determine when to exit program */
+    int wait_flag = 1; /* flag to determine whether to wait for child process or not */
 
     while (!terminated) {
+        wait_flag = 1;
         printf("osh>");
         fflush(stdout);
         
@@ -30,13 +32,14 @@ int main(void)
         }
 
         // Check for & argument
-        int wait_flag = 1;
+        
         if (strcmp(args[n_args-1], "&") == 0)
         {
             wait_flag = 0;
             args[--n_args] = NULL;
         }
 
+        // Fork a child process
         pid_t new_pid;
         int status;
         new_pid = fork();
@@ -54,11 +57,9 @@ int main(void)
                 break;
             default:
                 if (wait_flag == 1)
-                    wait(&status);
+                    waitpid(new_pid ,&status, 0);
                 break;
         }
-
-        /*(3) parent will invoke wait() unless command included &*/
     }
     return 0;
 }
