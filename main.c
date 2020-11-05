@@ -91,15 +91,106 @@ int main(void)
     return 0;
 }
 
-int executeSingleCmd(char* line, int wait_flag)
+char* replaceEx(char* line, char* ex_str)
 {
+    // Count number of !! occurents.
+    int count = 0;
+    char* p = strstr(line, "!!");
+    while (p != NULL)
+    {
+        count++;
+        p = strstr(p+2, "!!");
+    }
+
+    // Estimate length of replaced string
+    int len = strlen(line)+count*(strlen(ex_str) - 2);
+    
+    // Make a new string
+    char* reslt = (char*) malloc(len*sizeof(char));
+    strcpy(reslt, line);
+    
+    // Iterate and replace
+    p = strstr(line, "!!");
+    int ir;  
+    while (p != NULL)
+    {
+        ir = strstr(reslt, "!!") - reslt;    /* Start at first occurence of !!*/ 
+        strcpy(&reslt[ir],ex_str);
+        ir += strlen(ex_str);
+        strcpy(&reslt[ir], p+2);
+        p = strstr(p+2, "!!");
+    }
+    reslt[len] = '\0';
+    return reslt;
+}
+
+int executeSingleCmd(char* line, int wait_flag)
+/*
+    Extract redirect command from user inputted command line and redirect the stdout/stdin.
+
+    Parameter:
+    -   line (char*): user inputted command line. 
+        (Will be modified after this function but it length will remain intact)
+    -   ifd (int*): pointer used to return in file descriptor (if redirection occur).
+    -   ofd (int*): pointer used to return out file descriptor (if redirection occur).
+*/
+{
+    static char* his[1000];
+    static int n_his = 0;
+    int replace_flag = 0;   /* If !! in command is replaced, must free memory after exec done */
+    
+    if (strstr(line, "!!") != NULL){
+        // Return when call this command while the history stack is empty
+        if (n_his == 0)
+        {
+            printf("history: history is empty.\n");
+            return 0;
+        }
+
+        line = replaceEx(line, his[n_his-1]);
+        replace_flag = 1;
+    }
+    
+    // Store history if new command different from the previous
+    if (n_his == 0)
+    {
+        his[n_his] = (char*) malloc(strlen(line)*sizeof(char)+1);
+        strcpy(his[n_his], line);
+        n_his++;
+    } else if (strcmp(his[n_his-1], line) != 0)
+    {    
+        his[n_his] = (char*) malloc(strlen(line)*sizeof(char)+1);
+        strcpy(his[n_his], line);
+        n_his++;
+    }
+    
     char *args[MAX_LINE/2 + 1]; /* command line arguments */
     int o = dup(STDOUT_FILENO),
         i = dup(STDIN_FILENO);
     // Redirect then parse arguments
     parseRedirectCommand(line);
     int n_args = parseCommand(line, args);
-    
+
+    // Check for history argument
+    if (strcmp(args[0], "history") == 0)
+    {
+        int i = 0;
+        if (args[1] != NULL)
+            i = n_his - atoi(args[1]);
+        if (i < 0) i = 0;
+        
+        for (; i < n_his; i++)
+        {
+            printf("%d %s\n",i+1, his[i]);
+        }
+        dup2(i, STDIN_FILENO);
+        dup2(o, STDOUT_FILENO);
+        close(i); close(o);
+        if (replace_flag == 1)
+            free(line);
+        return 0;
+    }
+
     // Check for exit command
     if (strcmp(args[0], "exit") == 0
         || strcmp(args[0], "q") == 0
@@ -108,17 +199,9 @@ int executeSingleCmd(char* line, int wait_flag)
         dup2(i, STDIN_FILENO);
         dup2(o, STDOUT_FILENO);
         close(i); close(o);
+        if (replace_flag == 1)
+            free(line);
         return 1;
-    }
-
-    // Check for history argument or !! argument
-    if (strcmp(args[0], "history") == 0
-        || strcmp(args[0], "!!") == 0)
-    {
-        dup2(i, STDIN_FILENO);
-        dup2(o, STDOUT_FILENO);
-        close(i); close(o);
-        return 0;
     }
 
     // Fork a child process
@@ -137,6 +220,8 @@ int executeSingleCmd(char* line, int wait_flag)
                 dup2(o, STDOUT_FILENO);
                 close(i); close(o);
                 printf("%s: command not found\n", args[0]);
+                if (replace_flag == 1)
+                    free(line);
                 return 1;
             }
             break;
@@ -148,7 +233,8 @@ int executeSingleCmd(char* line, int wait_flag)
 
     dup2(i, STDIN_FILENO);
     dup2(o, STDOUT_FILENO);
-    close(i);
-    close(o);
+    close(i); close(o);
+    if (replace_flag == 1)
+        free(line);
     return 0;
 }
