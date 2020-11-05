@@ -61,6 +61,7 @@ int main(void)
                 // Redirect write pipe for command before | symbol
                 // Stdin remain intact
                 dup2(data_pipe[1], STDOUT_FILENO);
+                close(data_pipe[1]);
 
                 // Extract single command and set a new break point
                 strncpy(tmp, &line[brk], i-brk);
@@ -74,6 +75,7 @@ int main(void)
                 // Redirect read pipe
                 dup2(stdo, STDOUT_FILENO);
                 dup2(data_pipe[0], STDIN_FILENO);
+                close(data_pipe[0]);
             }
         }
         

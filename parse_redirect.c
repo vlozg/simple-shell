@@ -61,14 +61,17 @@ void parseRedirectCommand(char* line)
         case 1:
             ifd = open(tmp, O_CREAT | O_RDONLY, S_IRUSR | S_IWUSR);
             dup2(ifd, STDIN_FILENO);
+            close(ifd);
             break;
         case 2:
             ofd = open(tmp, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
             dup2(ofd, STDOUT_FILENO);
+            close(ofd);
             break;
         case 3:
             ofd = open(tmp, O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR);
             dup2(ofd, STDOUT_FILENO);
+            close(ofd);
             break;
         }
     }
