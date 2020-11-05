@@ -92,6 +92,15 @@ int main(void)
 }
 
 char* replaceEx(char* line, char* ex_str)
+/*
+    Replace !! in command with previous command and return.
+
+    Parameter:
+    -   line (char*): single command containt !!.
+    -   ex_str (char*): previous command in replace for !! in this command.
+
+    Return: (char*) command with !! have been replaced.
+*/
 {
     // Count number of !! occurents.
     int count = 0;
@@ -126,13 +135,17 @@ char* replaceEx(char* line, char* ex_str)
 
 int executeSingleCmd(char* line, int wait_flag)
 /*
-    Extract redirect command from user inputted command line and redirect the stdout/stdin.
+    Execute single command from string.
 
     Parameter:
-    -   line (char*): user inputted command line. 
-        (Will be modified after this function but it length will remain intact)
-    -   ifd (int*): pointer used to return in file descriptor (if redirection occur).
-    -   ofd (int*): pointer used to return out file descriptor (if redirection occur).
+    -   line (char*): single command.
+    -   wait_flag (int): 
+            1 = wait for child process.
+            0 = run parallel
+
+    Return: (int) whether to continue running or terminate the shell
+        0 = continue
+        1 = terminate
 */
 {
     static char* his[1000];
@@ -147,6 +160,7 @@ int executeSingleCmd(char* line, int wait_flag)
             return 0;
         }
 
+        // Replace every "!!" in line with previous command
         line = replaceEx(line, his[n_his-1]);
         replace_flag = 1;
     }
@@ -175,10 +189,12 @@ int executeSingleCmd(char* line, int wait_flag)
     if (strcmp(args[0], "history") == 0)
     {
         int i = 0;
+        // If second arg specified, this will be number of recent command listed in the console
         if (args[1] != NULL)
             i = n_his - atoi(args[1]);
         if (i < 0) i = 0;
-        
+
+        // Print history
         for (; i < n_his; i++)
         {
             printf("%d %s\n",i+1, his[i]);
