@@ -34,7 +34,8 @@ int main(void)
         // Extract single command in between symbol & and symbol |
         // Single command is a command that only have arguments and redirect sub-commands, does not contain bg (&) and pipe command (|)
         int brk = 0;
-        for (int i = 0; i < strlen(line); i++){
+        int i;
+        for (i = 0; i < strlen(line); i++){
             if (line[i] == '&')
             {
                 // Extract single command and set a new break point
