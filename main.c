@@ -120,16 +120,6 @@ int executeSingleCmd(char* line, int wait_flag)
     parseRedirectCommand(line);
     int n_args = parseCommand(line, args);
 
-    // Check for history argument
-    if (strcmp(args[0], "history") == 0)
-    {
-        printHistory(args[1]);
-        dup2(ibacked, STDIN_FILENO);
-        dup2(obacked, STDOUT_FILENO);
-        close(ibacked); close(obacked);
-        return 0;
-    }
-
     // Check for exit command
     if (strcmp(args[0], "exit") == 0
         || strcmp(args[0], "q") == 0
@@ -151,7 +141,16 @@ int executeSingleCmd(char* line, int wait_flag)
             printf( "Cannot fork any new process." ); 
             break;
         case 0:
-            if (execvp(args[0], args) < 0) 
+            // Check for history argument
+            if (strcmp(args[0], "history") == 0)
+            {
+                printHistory(args[1]);
+                dup2(ibacked, STDIN_FILENO);
+                dup2(obacked, STDOUT_FILENO);
+                close(ibacked); close(obacked);
+                return 1;
+            }
+            else if (execvp(args[0], args) < 0) 
             {
                 dup2(ibacked, STDIN_FILENO);
                 dup2(obacked, STDOUT_FILENO);
